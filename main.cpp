@@ -2,6 +2,7 @@
 #include <vector>
 #include <complex.h>
 #include <complex>
+#include <cmath>
 #include <fftw3.h>
 #include "extra_tools.h"
 
@@ -56,14 +57,35 @@ void RMA(){ //Range migration algorithm or omega-K algorithm
     double Lambda = 0.05656;            // Length of carrier wave [m]
     double R_0 = 852358.15;              // Range to center of antenna footprint [m]
     double ta = 0.6;                     // Aperture time [s]
-    double prf = 1679.902;               // Pulse Repitition Frequency [Hz]
+    double prf = 1679.902;// Pulse Repitition Frequency [Hz]
+    double c = 3.0e8;
+    double f_c = 0.0; //Central frequency
+    double alpha = 0.0; //squint angle of sight
 
     //(1) RVP correction
     RVP_correct(Raw_data, fs, K_r, size_range, size_azimuth);
+
     //(2) Azimuth FFT
     Azimuth_FFT(Raw_data, size_range, size_azimuth);
-    //(3) Matching filter
 
+    //(3) Matching filter
+    vector<vector<std::complex<double>>> filter(size_azimuth, vector<std::complex<double>>(size_range));
+    vector<double> KR(size_range);
+    double  r_c, KX;
+    vector<double> t = fill_up(-ta/2, ta/2, 1/prf);// time axis in azimuth
+    vector<double> tau = fill_up(-tau_p/2, tau_p/2, 1/fs);
+    KX = 4*M_PI*f_c * cos(alpha)/c;
+    for(size_t i = 0; i < size_azimuth;i++){
+        r_c = 0.0;
+        for(size_t j = 0;j < size_range;j++){
+            KR[j] = 4*M_PI*K_r/c * ((f_c/K_r) + tau[j] - 2*r_c/c);
+            if(KR[j] * KR[j] - KX * KX > 0.0){
+                filter[i][j] = exp(-KR[j] * r_c + r_c * sqrt(KR[j] * KR[j] - KX * KX)*static_cast<complex<double>>(I));
+            }else{
+                filter[i][j] = 1.0;
+            }
+        }
+    }
     //(4) Stolt interpolation
 
     //(5) 2D-IFFT
