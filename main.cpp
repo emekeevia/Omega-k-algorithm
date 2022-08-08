@@ -71,23 +71,36 @@ void RMA(){ //Range migration algorithm or omega-K algorithm
     //(3) Matching filter
     vector<vector<std::complex<double>>> filter(size_azimuth, vector<std::complex<double>>(size_range));
     vector<double> KR(size_range);
-    double  r_c, KX;
+    double  r_c, KX, K_xi_min, K_xi_max, sqrt_KX_KR;
+
+    K_xi_min = 0.0;
+    K_xi_max = 0.0;
+
     vector<double> t = fill_up(-ta/2, ta/2, 1/prf);// time axis in azimuth
     vector<double> tau = fill_up(-tau_p/2, tau_p/2, 1/fs);
     KX = 4*M_PI*f_c * cos(alpha)/c;
     for(size_t i = 0; i < size_azimuth;i++){
-        r_c = 0.0;
+        r_c = 0.0;//must depend on azimuth
         for(size_t j = 0;j < size_range;j++){
             KR[j] = 4*M_PI*K_r/c * ((f_c/K_r) + tau[j] - 2*r_c/c);
             if(KR[j] * KR[j] - KX * KX > 0.0){
-                filter[i][j] = exp(-KR[j] * r_c + r_c * sqrt(KR[j] * KR[j] - KX * KX)*static_cast<complex<double>>(I));
+                sqrt_KX_KR = sqrt(KR[j] * KR[j] - KX * KX);
             }else{
-                filter[i][j] = 1.0;
+                sqrt_KX_KR = 0.0;
             }
+            if(sqrt_KX_KR > K_xi_max){
+                K_xi_max = sqrt_KX_KR;
+            }
+
+            if(sqrt_KX_KR < K_xi_min){
+                K_xi_min = sqrt_KX_KR;
+            }
+            filter[i][j] = exp(KR[j] * r_c + r_c * sqrt_KX_KR *static_cast<complex<double>>(I));
         }
     }
-    //(4) Stolt interpolation
 
+    //(4) Stolt interpolation
+    vector<double> K_xi = fill_up(K_xi_min, K_xi_max, size_range);
     //(5) 2D-IFFT
 
 }
