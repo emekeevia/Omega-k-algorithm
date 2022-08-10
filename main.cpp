@@ -3,8 +3,10 @@
 #include <complex.h>
 #include <complex>
 #include <cmath>
+#include <string>
 #include <fftw3.h>
 #include "extra_tools.h"
+#include "compression_algorithm.h"
 
 double complex_part(std::complex<double> c, string s){
     if(s == "r"){
@@ -15,7 +17,7 @@ double complex_part(std::complex<double> c, string s){
     return 0.0;
 }
 
-vector<std::complex<double>> interp(vector<double>& KY,vector<std::complex<double>>& data, vector<double>& KY_model, string s){
+vector<std::complex<double>> interp(vector<double>& KY,vector<std::complex<double>>& data,const vector<double>& KY_model, string s){
     size_t size = data.size();
     size_t pos;
     vector<std::complex<double>> temp(size);
@@ -41,13 +43,13 @@ void RVP_correct(vector<vector<std::complex<double>>> &Raw_data, double fs, doub
     std::complex<double> phs_compensation = exp(-M_PI*(f_r*f_r/K_r)*static_cast<complex<double>>(I));
     fftw_plan plan_f, plan_b;
     for(size_t i = 0; i < size_azimuth;i++){
-        plan_f = fftw_plan_dft_1d(size_range, (fftw_complex*) &Raw_data[i],
-                                            (fftw_complex*) &RD, FFTW_FORWARD, FFTW_ESTIMATE); //making draft plan
+        plan_f = fftw_plan_dft_1d(size_range, (fftw_complex*) &Raw_data[i][0],
+                                            (fftw_complex*) &RD[0], FFTW_FORWARD, FFTW_ESTIMATE); //making draft plan
 
         fftw_execute(plan_f); // Fourier Transform
         RD[i] = RD[i] * phs_compensation;
-        plan_f = fftw_plan_dft_1d(size_range, (fftw_complex*) &RD,
-                                  (fftw_complex*) &Raw_data[i], FFTW_BACKWARD, FFTW_ESTIMATE);
+        plan_b = fftw_plan_dft_1d(size_range, (fftw_complex*) &RD[0],
+                                  (fftw_complex*) &Raw_data[i][0], FFTW_BACKWARD, FFTW_ESTIMATE);
         fftw_execute(plan_b);
     }
     fftw_destroy_plan(plan_f);
@@ -61,8 +63,8 @@ void Azimuth_FFT(vector<vector<std::complex<double>>> &Raw_data, size_t size_ran
         for(size_t i = 0; i < size_azimuth;i++){
             temp[i] = Raw_data[i][j];
         }
-        plan_f = fftw_plan_dft_1d(size_azimuth, (fftw_complex*) &temp,
-                                  (fftw_complex*) &temp, FFTW_FORWARD, FFTW_ESTIMATE);
+        plan_f = fftw_plan_dft_1d(size_azimuth, (fftw_complex*) &temp[0],
+                                  (fftw_complex*) &temp[0], FFTW_FORWARD, FFTW_ESTIMATE);
         fftw_execute(plan_f);
         for(size_t i = 0; i < size_azimuth;i++){
             Raw_data[i][j] = temp[i];
@@ -74,6 +76,7 @@ void RMA(){ //Range migration algorithm or omega-K algorithm
     vector<vector<std::complex<double>>> Raw_data = read_file(false);
     size_t size_azimuth = Raw_data.size();
     size_t size_range = Raw_data[0].size();
+
     // Sensor parameters (ERS satellite)
     double fs = 18.962468e+6;  //Range Sampling Frequency [Hz]
     double K_r = 4.18989015e+11;     // FM Rate Range Chirp [1/s^2] --> up-chirp
@@ -86,15 +89,17 @@ void RMA(){ //Range migration algorithm or omega-K algorithm
     double c = 3.0e8;
     double f_c = 0.0; //Central frequency
     double alpha = 0.0; //squint angle of sight
-    double psi = 0.5; //угол скольжения
+    //double psi = 0.5; //угол скольжения - угол между направлением на Надир и на аппарат
+    //(1) Compression
+    SAR(Raw_data, fs, K_r, tau_p, V, Lambda, R_0, ta, prf, size_azimuth, size_range);
 
-    //(1) RVP correction
+    //(2) RVP correction
     RVP_correct(Raw_data, fs, K_r, size_range, size_azimuth);
 
-    //(2) Azimuth FFT
+    //(3) Azimuth FFT
     Azimuth_FFT(Raw_data, size_range, size_azimuth);
 
-    //(3) Matching filter
+    //(4) Matching filter
     vector<vector<std::complex<double>>> filter(size_azimuth, vector<std::complex<double>>(size_range));
     vector<double> KR(size_range);
     vector<double> KX(size_azimuth);
@@ -131,7 +136,7 @@ void RMA(){ //Range migration algorithm or omega-K algorithm
         }
     }
 
-    //(4) Stolt interpolation
+    //(5) Stolt interpolation
     //double B_eff = K_r * tau_p;
     //double P_o = cos(psi);
     //double theta_p = (static_cast<double>(size_azimuth)/static_cast<double>(size_range))/((f_c/B_eff) - 0.5);
@@ -144,20 +149,20 @@ void RMA(){ //Range migration algorithm or omega-K algorithm
 
     for(size_t i = 0;i < size_azimuth; i++){
         New_phase[i] = interp(KY[i], Raw_data[i], KY_model,  "r") +
-                interp(KY[i], Raw_data[i],KY_model, "i") * static_cast<std::complex<double>>(I);
+                interp(KY[i], Raw_data[i], KY_model, "i") * static_cast<std::complex<double>>(I);
 
     }
-    //(5) 2D-IFFT
-    fftw_plan plan = fftw_plan_dft_2d(size_azimuth, size_range, (fftw_complex*) &New_phase, (fftw_complex*) &Raw_data,
+    //(6) 2D-IFFT
+    fftw_plan plan = fftw_plan_dft_2d(size_azimuth, size_range, (fftw_complex*) &New_phase[0][0], (fftw_complex*) &Raw_data[0][0],
     FFTW_BACKWARD, FFTW_ESTIMATE);
+
     fftw_execute(plan);
     fftw_destroy_plan(plan);
 
-    Write_in_file(Raw_data);
+    Write_in_file(Raw_data, "Test_file_for_omega_k");
 }
 
 int main() {
     RMA();
-    std::cout << "Hello, World!" << std::endl;
     return 0;
 }

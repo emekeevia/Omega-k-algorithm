@@ -55,6 +55,12 @@ build CMakeFiles/extra.dir/extra_tools.cpp.o: CXX_COMPILER__extra_Debug /home/iv
   OBJECT_DIR = CMakeFiles/extra.dir
   OBJECT_FILE_DIR = CMakeFiles/extra.dir
 
+build CMakeFiles/extra.dir/compression_algorithm.cpp.o: CXX_COMPILER__extra_Debug /home/ivan/CLionProjects/Omega-K/compression_algorithm.cpp || cmake_object_order_depends_target_extra
+  DEP_FILE = CMakeFiles/extra.dir/compression_algorithm.cpp.o.d
+  FLAGS = -g
+  OBJECT_DIR = CMakeFiles/extra.dir
+  OBJECT_FILE_DIR = CMakeFiles/extra.dir
+
 
 # =============================================================================
 # Link build statements for STATIC_LIBRARY target extra
@@ -63,7 +69,7 @@ build CMakeFiles/extra.dir/extra_tools.cpp.o: CXX_COMPILER__extra_Debug /home/iv
 #############################################
 # Link the static library libextra.a
 
-build libextra.a: CXX_STATIC_LIBRARY_LINKER__extra_Debug CMakeFiles/extra.dir/extra_tools.cpp.o
+build libextra.a: CXX_STATIC_LIBRARY_LINKER__extra_Debug CMakeFiles/extra.dir/extra_tools.cpp.o CMakeFiles/extra.dir/compression_algorithm.cpp.o
   LANGUAGE_COMPILE_FLAGS = -g
   OBJECT_DIR = CMakeFiles/extra.dir
   POST_BUILD = :
