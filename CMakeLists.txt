@@ -4,7 +4,7 @@ project(Omega_K)
 set(CMAKE_CXX_STANDARD 14)
 
 
-set(SOURCE_LIB extra_tools.cpp compression_algorithm.cpp)			# Тоже самое, но для библиотеки
+set(SOURCE_LIB extra_tools.cpp compression_algorithm.cpp tester.h tester.cpp)			# Тоже самое, но для библиотеки
 
 set(SOURCE_EXE main.cpp)		# Установка переменной со списком исходников для исполняемого файла
 

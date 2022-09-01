@@ -7,6 +7,7 @@
 #include <fftw3.h>
 #include "extra_tools.h"
 #include "compression_algorithm.h"
+#include "tester.h"
 
 double complex_part(std::complex<double> c, string s){
     if(s == "r"){
@@ -73,24 +74,25 @@ void Azimuth_FFT(vector<vector<std::complex<double>>> &Raw_data, size_t size_ran
     fftw_destroy_plan(plan_f);
 }
 void RMA(){ //Range migration algorithm or omega-K algorithm
-    vector<vector<std::complex<double>>> Raw_data = read_file(false);
+    vector<vector<std::complex<double>>> Raw_data = read_file(false, "/home/ivan/CLionProjects/Omega-K/Example_with_rectangle.txt");
     size_t size_azimuth = Raw_data.size();
     size_t size_range = Raw_data[0].size();
 
     // Sensor parameters (ERS satellite)
-    double fs = 18.962468e+6;  //Range Sampling Frequency [Hz]
-    double K_r = 4.18989015e+11;     // FM Rate Range Chirp [1/s^2] --> up-chirp
-    double tau_p = 37.12e-6;       // Chirp duration [s]
-    double V = 7098.0194;                // Effective satellite velocity [m/s]
-    double Lambda = 0.05656;            // Length of carrier wave [m]
-    double R_0 = 852358.15;              // Range to center of antenna footprint [m]
-    double ta = 0.6;                     // Aperture time [s]
-    double prf = 1679.902;// Pulse Repitition Frequency [Hz]
-    double c = 3.0e8;
-    double f_c = 0.0; //Central frequency
-    double alpha = 0.0; //squint angle of sight
-    //double psi = 0.5; //угол скольжения - угол между направлением на Надир и на аппарат
+    double fs = 18.962468e+6;  //Range Sampling Frequency [Hz]?
+    double K_r = 4.8e+12;     // FM Rate Range Chirp [1/s^2] --> up-chirp
+    double tau_p = 3.85e-5;       // Chirp duration [s]
+    double V = 7098.0194;                // Effective satellite velocity [m/s] ?
+    double Lambda = 0.03;            // Length of carrier wave [m]
+    double R_0 = 1.0e+7;              // Range to center of antenna footprint [m]
+    double ta = 4.55e-5;                     // Aperture time [s]
+    double prf = 45000000.0;// Pulse Repitition Frequency [Hz]
+    double c = 299792458.0;
+    double f_c = 1.0e+10; //Central frequency?
+    double alpha = M_PI/2.0; //squint angle of sight ?
+    double psi = M_PI/2.0; //угол скольжения - угол между направлением на Надир и на аппарат
     //(1) Compression
+    //В sim_demo.py нет стадии свёртки с опорным сигналом
     SAR(Raw_data, fs, K_r, tau_p, V, Lambda, R_0, ta, prf, size_azimuth, size_range);
 
     //(2) RVP correction
@@ -111,7 +113,7 @@ void RMA(){ //Range migration algorithm or omega-K algorithm
 
 
     vector<double> t = fill_up(-ta/2, ta/2, 1/prf);// time axis in azimuth
-    vector<double> tau = fill_up(-tau_p/2, tau_p/2, 1/fs);
+    vector<double> tau = fill_up(-tau_p/2, tau_p/2, 1/fs);// time axis in range
 
     for(size_t i = 0; i < size_azimuth;i++){
         KX[i] = 4*M_PI*f_c * cos(alpha)/c;
@@ -145,16 +147,26 @@ void RMA(){ //Range migration algorithm or omega-K algorithm
     //double KR_max = *std::max_element(KR.begin(), KR.end());
 
     vector<double> KY_model = fill_up(KY_min, KY_max, size_range);
-    vector<vector<std::complex<double>>> New_phase(size_azimuth, vector<std::complex<double>>(size_range, 0.0));
-
+    fftw_complex *New_phase;
+    New_phase = (fftw_complex*) fftw_malloc(size_azimuth*size_range* sizeof(fftw_complex));
+    //fftw_complex New_phase[size_range][size_azimuth];
+    fftw_complex *Result;
+    Result = (fftw_complex*) fftw_malloc(size_azimuth*size_range* sizeof(fftw_complex));
+    //vector<vector<std::complex<double>>> New_phase(size_azimuth, vector<std::complex<double>>(size_range, 0.0));
+    vector<std::complex<double>> temp(size_range);
     for(size_t i = 0;i < size_azimuth; i++){
-        New_phase[i] = interp(KY[i], Raw_data[i], KY_model,  "r") +
+        temp = interp(KY[i], Raw_data[i], KY_model,  "r") +
                 interp(KY[i], Raw_data[i], KY_model, "i") * static_cast<std::complex<double>>(I);
-
+        for(size_t j = 0; j < size_range;j++){
+            New_phase[j+size_range*i][0] = temp[j].real();
+            New_phase[j+size_range*i][1] = temp[j].imag();
+        }
     }
     //(6) 2D-IFFT
-    fftw_plan plan = fftw_plan_dft_2d(size_azimuth, size_range, (fftw_complex*) &New_phase[0][0], (fftw_complex*) &Raw_data[0][0],
-    FFTW_BACKWARD, FFTW_ESTIMATE);
+
+    fftw_plan plan = fftw_plan_dft_2d(size_azimuth,size_range,
+                                      New_phase, Result,
+                                    FFTW_BACKWARD, FFTW_ESTIMATE);
 
     fftw_execute(plan);
     fftw_destroy_plan(plan);
