@@ -1,0 +1,4 @@
+/home/ivan/CLionProjects/Omega-K/sar_processing/cmake-build-debug/CMakeFiles/extra.dir
+/home/ivan/CLionProjects/Omega-K/sar_processing/cmake-build-debug/CMakeFiles/Omega_K.dir
+/home/ivan/CLionProjects/Omega-K/sar_processing/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/ivan/CLionProjects/Omega-K/sar_processing/cmake-build-debug/CMakeFiles/rebuild_cache.dir

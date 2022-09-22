@@ -1,0 +1,4 @@
+/snap/clion/204/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/snap/clion/204/bin/ninja/linux/ninja -G Ninja -S /home/ivan/CLionProjects/Omega-K/sar_processing -B /home/ivan/CLionProjects/Omega-K/sar_processing/cmake-build-debug
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/ivan/CLionProjects/Omega-K/sar_processing/cmake-build-debug
